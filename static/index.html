@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список имен и координат</title>
+</head>
+<body>
+    <h1>Добавить имя и координаты</h1>
+
+    <label>Координаты (X A Y):</label>
+    <input type="text" id="pointInput" placeholder="Например: 12.3, 45.6">
+    <div>
+        <label>
+            <input type="checkbox" id="isActiveCheckbox" checked> Активная точка
+        </label>
+    </div>
+
+    <div id="extraFields">
+        <label>Название:</label>
+        <input type="text" id="pointTitle" placeholder="Введите название">
+
+        <label>Описание:</label>
+        <input type="text" id="pointDescription" placeholder="Введите описание">
+
+        <label>Тип:</label>
+        <select id="pointType">
+            <option value="Памятник">Памятник</option>
+            <option value="Здание">Здание</option>
+            <option value="Парк">Парк</option>
+            <option value="Другое">Другое</option>
+        </select>
+        <label>Фотографии:</label>
+        <input type="file" id="pointImages" multiple>
+        <div id="imagePreview"></div>
+    </div>
+    <button onclick="addPoint()">Добавить точку</button>
+
+    <h2>Точки</h2>
+    <ul id="pointList"></ul>
+
+    <label>Название:</label>
+    <input type="text" id="nameInput" placeholder="Введите название">
+    <button onclick="updateOrCreateName()">Сохранить</button>
+
+    <h2>Список имен</h2>
+    <ul id="nameList"></ul>
+<script>
+    let points = [];
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const isActiveCheckbox = document.getElementById("isActiveCheckbox");
+        const fields = document.getElementById("extraFields");
+
+        if (isActiveCheckbox && fields) {
+            isActiveCheckbox.addEventListener("change", function() {
+                fields.style.display = this.checked ? "block" : "none";
+            });
+        } else {
+            console.error("Ошибка: не найден элемент isActiveCheckbox или extraFields!");
+        }
+    });
+
+    async function addPoint() {
+        const pointInput = document.getElementById("pointInput").value;
+        const isActive = document.getElementById("isActiveCheckbox").checked;
+        const [x, y] = pointInput.split(",").map(coord => parseFloat(coord.trim()));
+        const title = document.getElementById("pointTitle").value || null;
+        const description = document.getElementById("pointDescription").value || null;
+        const type = document.getElementById("pointType").value || null;
+
+        if (isNaN(x) || isNaN(y)) {
+            return alert("Введите координаты в формате: X, Y");
+        }
+
+        const files = document.getElementById("pointImages").files;
+        const imageUrls = [];
+
+        for (let file of files) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const response = await fetch("/test/upload_image/", {
+                    method: "POST",
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    imageUrls.push(data.image_url);
+                }
+            } catch (error) {
+                console.error("Ошибка загрузки изображения:", error);
+            }
+        }
+
+        points.push({ x, y, is_active: isActive, title, description, type, images: imageUrls });
+
+        document.getElementById("pointInput").value = "";
+        document.getElementById("pointImages").value = "";
+        updatePointList();
+    }
+
+    function updatePointList() {
+        const pointList = document.getElementById("pointList");
+        pointList.innerHTML = points.map((p, index) =>
+            `<li>
+                ${index + 1}: (${p.x}, ${p.y}) ${p.is_active ? "+" : "-"}
+                <strong>${p.title || "Без названия"}</strong>
+                <em>${p.type || "Не указан тип"}</em>
+                <p>${p.description || "Без описания"}</p>
+                <button onclick="removePoint(${p.id})">Удалить</button>
+            </li>`
+        ).join("");
+    }
+
+    async function updateOrCreateName() {
+        const name = document.getElementById("nameInput").value;
+        if (!name) return alert("Введите название!");
+
+        const checkResponse = await fetch(`/test/names/`);
+        const names = await checkResponse.json();
+        const existingName = names.find(n => n.name === name);
+
+        const method = existingName ? "PUT" : "POST";
+        const url = existingName ? `/test/update_name/${existingName.id}` : `/test/createname/`;
+
+        const response = await fetch(url, {
+            method: method,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name, points: points })
+        });
+
+        if (response.ok) {
+            points = [];
+            updatePointList();
+            await loadNames();
+        } else {
+            alert("Ошибка!");
+        }
+    }
+
+    document.getElementById("pointImages").addEventListener("change", function() {
+        const preview = document.getElementById("imagePreview");
+        preview.innerHTML = "";
+
+        for (let file of this.files) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement("img");
+                img.src = e.target.result;
+                img.width = 100;
+                img.height = 100;
+                preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    async function createName() {
+        const nameInput = document.getElementById("nameInput").value.trim();
+        if (!nameInput) return alert("Введите название!");
+        if (points.length === 0) return alert("Добавьте хотя бы одну точку!");
+        console.log("Отправляем в API:", { name: nameInput, points });
+        const existingNames = await fetch("/test/names/").then(res => res.json());
+        const existingName = existingNames.find(n => n.name === nameInput);
+
+        if (existingName) {
+            await fetch(`/test/delete_name/${existingName.id}/`, { method: "DELETE" });
+        }
+
+        const response = await fetch("/test/createname/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: nameInput, points })
+        });
+
+        if (response.ok) {
+            document.getElementById("nameInput").value = "";
+            points = [];
+            updatePointList();
+            await loadNames();
+        } else {
+            alert("Ошибка при добавлении!");
+        }
+    }
+
+    async function loadNames() {
+        console.log("Загрузка списка имён...");
+        try {
+            const response = await fetch("/test/names/");
+            if (!response.ok) throw new Error("Ошибка загрузки имён");
+
+            const names = await response.json();
+            console.log("Полученные имена:", names);
+
+            names.sort((a, b) => a.id - b.id);
+            const nameList = document.getElementById("nameList");
+            if (!nameList) throw new Error("Элемент nameList не найден!");
+
+            nameList.innerHTML = names.map(n =>
+                `<li onclick="loadPoints(${n.id})" style="cursor: pointer;">
+                    ${n.id}: ${n.name}
+                </li>`
+            ).join("");
+        } catch (error) {
+            console.error("Ошибка загрузки имён:", error);
+        }
+    }
+
+    async function loadPoints(nameId) {
+        points = [];
+        updatePointList();
+
+        const response = await fetch(`/test/points/${nameId}/`);
+        if (!response.ok) {
+            alert("Точки не найдены!");
+            return;
+        }
+
+        const pointsData = await response.json();
+        points = pointsData;
+        updatePointList();
+    }
+
+    function removePoint(pointId) {
+        points = points.filter(point => point.id !== pointId);
+        updatePointList();
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        loadNames();
+    });
+</script>
+</body>
+</html>
