@@ -3,29 +3,32 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'start_bloc.dart';
 import 'app_theme.dart';
 
-class TemplateSelectionScreen extends StatefulWidget {
-  const TemplateSelectionScreen({super.key});
+class NavigationSelectionScreen extends StatefulWidget {
+  final String template;
+  final String theme;
+
+  const NavigationSelectionScreen({super.key, required this.template, required this.theme});
 
   @override
-  _TemplateSelectionScreenState createState() => _TemplateSelectionScreenState();
+  _NavigationSelectionScreenState createState() => _NavigationSelectionScreenState();
 }
 
-class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
-  String? selectedTemplate;
-
-  void _selectTemplate(String template) {
-    setState(() {
-      selectedTemplate = template;
-    });
-  }
-
-  final List<Map<String, String>> templates = [
+final List<Map<String, String>> navigates = [
     {"title": "Фитнес-Клуб", "image": "assets/fitnes.png",},
     {"title": "Фитнес-Студия", "image": "assets/fitnes.png"},
     // {"title": "Йога Центр", "image": "assets/fitnes.png"},
     // {"title": "Тренажёрный Зал", "image": "assets/fitnes.png"},
     // {"title": "Здоровый Образ", "image": "assets/fitnes.png"},
-  ];
+];
+
+class _NavigationSelectionScreenState extends State<NavigationSelectionScreen> {
+  String? selectedNavigation;
+
+  void _selectNavigation(String navigate) {
+    setState(() {
+      selectedNavigation = navigate;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +52,7 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Начнем! Выберите шаблон для вашего приложения!",
+                        "Выберите навигацию!",
                         style: theme.textTheme.titleLarge,
                       ),
                       SizedBox(height: 10),
@@ -66,10 +69,10 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
                                 mainAxisSpacing: 10,
                                 childAspectRatio: 0.9,
                               ),
-                              itemCount: templates.length,
+                              itemCount: navigates.length,
                               itemBuilder: (context, index) {
-                                final item = templates[index];
-                                return _buildTemplateCard(item["title"]!, item["image"]!, theme);
+                                final item = navigates[index];
+                                return _buildNavigationCard(item["title"]!, item["image"]!, theme);
                               },
                             );
                           },
@@ -78,12 +81,12 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
                       SizedBox(height: 20),
                       Center(
                         child: ElevatedButton(
-                          onPressed: selectedTemplate == null
+                          onPressed: selectedNavigation == null
                               ? null
                               : () {
-                                  context.read<ProjectBloc>().add(SelectTemplate(selectedTemplate!));
+                                  context.read<ProjectBloc>().add(SelectNavigation(selectedNavigation!));
                                 },
-                          child: Text("Далее", style:TextStyle(color: Colors.white)),
+                          child: Text("Далее", style: TextStyle(color: Colors.white)),
                         ),
                       ),
                     ],
@@ -98,10 +101,10 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
   }
 
 
-  Widget _buildTemplateCard(String title, String imagePath, ThemeData theme) {
-    bool isSelected = selectedTemplate == title;
+  Widget _buildNavigationCard(String title, String imagePath, ThemeData theme) {
+    bool isSelected = selectedNavigation == title;
     return GestureDetector(
-      onTap: () => _selectTemplate(title),
+      onTap: () => _selectNavigation(title),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
@@ -137,9 +140,9 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStep("1", "ВЫБРАТЬ ШАБЛОН", isActive: true),
-          _buildStep("2", "ВЫБРАТЬ ТЕМУ",),
-          _buildStep("3", "ВЫБРАТЬ НАВИГАЦИЮ"),
+          _buildStep("1", "ВЫБРАТЬ ШАБЛОН", isCompleted: true),
+          _buildStep("2", "ВЫБРАТЬ ТЕМУ", isCompleted: true),
+          _buildStep("3", "ВЫБРАТЬ НАВИГАЦИЮ", isActive: true),
           _buildStep("4", "НАЗВАТЬ ПРОЕКТ"),
           _buildStep("5", "СОЗДАТЬ"),
         ],

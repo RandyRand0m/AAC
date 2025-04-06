@@ -1,3 +1,4 @@
+import 'package:diplom_fl/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'start_bloc.dart';
@@ -15,10 +16,13 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: AppTheme.buildTheme(),
       home: BlocListener<ProjectBloc, ProjectState>(
         listener: (context, state) {
           if (state is ThemeSelectionState) {
@@ -35,6 +39,7 @@ class MyApp extends StatelessWidget {
                 builder: (context) => ProjectNameScreen(
                   template: state.template,
                   theme: state.theme,
+                  navigate: state.navigate,
                 ),
               ),
             );

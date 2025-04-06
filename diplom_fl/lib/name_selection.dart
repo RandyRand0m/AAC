@@ -5,8 +5,9 @@ import 'dart:convert';
 class ProjectNameScreen extends StatefulWidget {
   final String template;
   final String theme;
+  final String navigate;
 
-  ProjectNameScreen({required this.template, required this.theme});
+  const ProjectNameScreen({super.key, required this.template, required this.theme, required this.navigate});
 
   @override
   _ProjectNameScreenState createState() => _ProjectNameScreenState();
@@ -36,6 +37,7 @@ class _ProjectNameScreenState extends State<ProjectNameScreen> {
         "rules": {
           "template": widget.template,
           "theme": widget.theme,
+          "navigation": widget.navigate,
         }
       }),
     );

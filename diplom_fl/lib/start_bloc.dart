@@ -14,6 +14,11 @@ class SelectTheme extends ProjectEvent {
   SelectTheme(this.theme);
 }
 
+class SelectNavigation extends ProjectEvent {
+  final String navigate;
+  SelectNavigation(this.navigate);
+}
+
 class EnterProjectName extends ProjectEvent {
   final String name;
   EnterProjectName(this.name);
@@ -30,11 +35,18 @@ class ThemeSelectionState extends ProjectState {
   ThemeSelectionState(this.template);
 }
 
+class NavigationSelectionState extends ProjectState {
+  final String template;
+  final String theme;
+  NavigationSelectionState(this.template, this.theme);
+}
+
 class ProjectNameState extends ProjectState {
   final String template;
   final String theme;
+  final String navigate;
   final String? name;
-  ProjectNameState(this.template, this.theme, {this.name});
+  ProjectNameState(this.template, this.theme, this.navigate,{this.name});
 }
 
 class ProjectSavingState extends ProjectState {}
@@ -49,6 +61,7 @@ class ProjectErrorState extends ProjectState {
 class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
   String? selectedTemplate;
   String? selectedTheme;
+  String? selectedNavigation;
   String? projectName;
 
   ProjectBloc() : super(TemplateSelectionState()) {
@@ -58,13 +71,23 @@ class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
     });
 
     on<SelectTheme>((event, emit) {
-      selectedTheme = event.theme;
-      emit(ProjectNameState(selectedTemplate!, selectedTheme!));
+      selectedTheme = event.theme; // Сохраняем выбранную тему
+      if (selectedTemplate != null) {
+        print("Переход на экран выбора навигации");
+        emit(NavigationSelectionState(selectedTemplate!, selectedTheme!));
+      } else {
+        print("Ошибка: selectedTemplate == null!");
+      }
+    });
+
+    on<SelectNavigation>((event, emit) {
+      selectedNavigation = event.navigate;
+      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!)); // Переход к названию проекта
     });
 
     on<EnterProjectName>((event, emit) {
       projectName = event.name;
-      emit(ProjectNameState(selectedTemplate!, selectedTheme!, name: projectName));
+      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!, name: projectName));
     });
 
     on<SaveProject>((event, emit) async {

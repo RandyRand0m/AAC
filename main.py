@@ -2,6 +2,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from api.api import router as project_router
 
 app = FastAPI()
 
@@ -20,6 +21,7 @@ class ProjectCreate(BaseModel):
 
 projects = []
 
+app.include_router(project_router, prefix="/api")
 @app.post("/projects/")
 async def create_project(project: ProjectCreate):
     projects.append(project)
