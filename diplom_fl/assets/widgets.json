@@ -1,0 +1,74 @@
+[
+    {
+      "widgetName": "Text",
+      "category": 0,
+      "metadata": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "default": "текст",
+            "label": "Текст"
+          },
+          "fontSize": {
+            "type": "number",
+            "default": 16,
+            "label": "Размер шрифта"
+          },
+          "color": {
+            "type": "color",
+            "default": "#133333",
+            "label": "Цвет текста"
+          }
+        }
+      },
+      "sampleCode": "Text('$text', style: TextStyle(fontSize: $fontSize, color: Color.fromHex('$color')));"
+    },
+    {
+      "widgetName": "Card",
+      "category": 1,
+      "metadata": {
+        "properties": {
+          "elevation": {
+            "type": "number",
+            "default": 4,
+            "label": "Подъём"
+          },
+          "padding": {
+            "type": "number",
+            "default": 8,
+            "label": "Отступы"
+          },
+          "text": {
+            "type": "string",
+            "default": "Контент карточки",
+            "label": "Текст"
+          }
+        }
+      },
+      "sampleCode": "Card(elevation: $elevation, child: Padding(padding: EdgeInsets.all($padding), child: Text('$text')))"
+    },
+    {
+      "widgetName": "Button",
+      "category": 1,
+      "metadata": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "default": "Нажми меня",
+            "label": "Текст кнопки"
+          },
+          "backgroundColor": {
+            "type": "color",
+            "default": "#e8a9f4",
+            "label": "Цвет фона"
+          },
+          "textColor": {
+            "type": "color",
+            "default": "#FFFFFF",
+            "label": "Цвет текста"
+          }
+        }
+      },
+      "sampleCode": "ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Color.fromHex('$backgroundColor')), onPressed: () {}, child: Text('$text', style: TextStyle(color: Color.fromHex('$textColor'))))"
+    }
+  ]

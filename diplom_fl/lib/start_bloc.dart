@@ -1,8 +1,25 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:hydrated_bloc/hydrated_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class ProjectEvent {}
+class LoginEvent extends ProjectEvent {
+  final String phone;
+  final String code;
+
+  LoginEvent(this.phone, this.code);
+}
+class CheckAuthEvent extends ProjectEvent {
+  final int userId;
+  CheckAuthEvent({required this.userId});
+}
+
+class LoginInitialState extends ProjectState {}
+
+class AuthenticatedState extends ProjectState {}
 
 class SelectTemplate extends ProjectEvent {
   final String template;
@@ -26,6 +43,12 @@ class EnterProjectName extends ProjectEvent {
 
 class SaveProject extends ProjectEvent {}
 
+/// новое событие, если нужно загрузить проект из API по ID
+class LoadProjectById extends ProjectEvent {
+  final int id;
+  LoadProjectById(this.id);
+}
+
 abstract class ProjectState {}
 
 class TemplateSelectionState extends ProjectState {}
@@ -46,79 +69,174 @@ class ProjectNameState extends ProjectState {
   final String theme;
   final String navigate;
   final String? name;
-  ProjectNameState(this.template, this.theme, this.navigate,{this.name});
+  ProjectNameState(this.template, this.theme, this.navigate, {this.name});
 }
 
 class ProjectSavingState extends ProjectState {}
 
-class ProjectSavedState extends ProjectState {}
+class ProjectSavedState extends ProjectState {
+  final int projectId;
+  ProjectSavedState(this.projectId);
+}
 
 class ProjectErrorState extends ProjectState {
   final String error;
   ProjectErrorState(this.error);
 }
 
-class ProjectBloc extends Bloc<ProjectEvent, ProjectState> {
+class ProjectLoadedState extends ProjectState {
+  final int id;
+  final String name;
+  final Map<String, dynamic> rules;
+
+  ProjectLoadedState({
+    required this.id,
+    required this.name,
+    required this.rules,
+  });
+}
+
+class LoadProjectsOverview extends ProjectEvent {
+  final int userId;
+  LoadProjectsOverview(this.userId);
+}
+
+class ProjectsOverviewState extends ProjectState {
+  final int userId;
+  ProjectsOverviewState(this.userId);
+}
+
+class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
   String? selectedTemplate;
   String? selectedTheme;
   String? selectedNavigation;
   String? projectName;
+  int? createdProjectId;
 
-  ProjectBloc() : super(TemplateSelectionState()) {
-    on<SelectTemplate>((event, emit) {
-      selectedTemplate = event.template;
-      emit(ThemeSelectionState(event.template));
-    });
+  ProjectBloc() : super(LoginInitialState()) {
+    _checkAuthOnStart();
 
-    on<SelectTheme>((event, emit) {
-      selectedTheme = event.theme; // Сохраняем выбранную тему
-      if (selectedTemplate != null) {
-        print("Переход на экран выбора навигации");
-        emit(NavigationSelectionState(selectedTemplate!, selectedTheme!));
+    on<CheckAuthEvent>((event, emit) async {
+      debugPrint('>>> [CheckAuthEvent] user_id: ${event.userId}');
+
+      if (event.userId != null) {
+        emit(AuthenticatedState());
       } else {
-        print("Ошибка: selectedTemplate == null!");
+        emit(LoginInitialState());
       }
     });
 
-    on<SelectNavigation>((event, emit) {
-      selectedNavigation = event.navigate;
-      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!)); // Переход к названию проекта
-    });
+    // остальной код событий без изменений ...
 
-    on<EnterProjectName>((event, emit) {
-      projectName = event.name;
-      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!, name: projectName));
-    });
+  }
 
-    on<SaveProject>((event, emit) async {
-      if (projectName == null || projectName!.isEmpty) {
-        emit(ProjectErrorState("Название проекта не может быть пустым"));
-        return;
+  void _checkAuthOnStart() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('user_id');
+    if (userId != null) {
+      add(CheckAuthEvent(userId: userId));
+    }
+  }
+
+  @override
+  ProjectState? fromJson(Map<String, dynamic> json) {
+    try {
+      final stateType = json['state'] as String?;
+
+      // Восстановим поля для удобства
+      selectedTemplate = json['selectedTemplate'];
+      selectedTheme = json['selectedTheme'];
+      selectedNavigation = json['selectedNavigation'];
+      projectName = json['projectName'];
+      createdProjectId = json['createdProjectId'];
+
+      switch (stateType) {
+        case 'LoginInitialState':
+          return LoginInitialState();
+        case 'AuthenticatedState':
+          return AuthenticatedState();
+        case 'ThemeSelectionState':
+          if (selectedTemplate != null) {
+            return ThemeSelectionState(selectedTemplate!);
+          }
+          break;
+        case 'NavigationSelectionState':
+          if (selectedTemplate != null && selectedTheme != null) {
+            return NavigationSelectionState(selectedTemplate!, selectedTheme!);
+          }
+          break;
+        case 'ProjectNameState':
+          if (selectedTemplate != null && selectedTheme != null && selectedNavigation != null) {
+            return ProjectNameState(
+              selectedTemplate!,
+              selectedTheme!,
+              selectedNavigation!,
+              name: projectName,
+            );
+          }
+          break;
+        case 'ProjectSavedState':
+          if (createdProjectId != null) {
+            return ProjectSavedState(createdProjectId!);
+          }
+          break;
+        case 'ProjectLoadedState':
+          final id = json['projectId'] as int?;
+          final name = json['projectNameLoaded'] as String?;
+          final rules = json['rules'] != null
+              ? Map<String, dynamic>.from(json['rules'])
+              : null;
+          if (id != null && name != null && rules != null) {
+            return ProjectLoadedState(id: id, name: name, rules: rules);
+          }
+          break;
+        case 'ProjectErrorState':
+          final message = json['errorMessage'] as String? ?? "Ошибка";
+          return ProjectErrorState(message);
       }
 
-      emit(ProjectSavingState());
+      return null;
+    } catch (e) {
+      debugPrint("Ошибка при десериализации состояния: $e");
+      return null;
+    }
+  }
 
-      try {
-        final response = await http.post(
-          Uri.parse('http://localhost:9096/projects/'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            "name": projectName,
-            "rules": {
-              "template": selectedTemplate,
-              "theme": selectedTheme,
-            }
-          }),
-        );
+  @override
+  Map<String, dynamic>? toJson(ProjectState state) {
+    final Map<String, dynamic> json = {
+      'selectedTemplate': selectedTemplate,
+      'selectedTheme': selectedTheme,
+      'selectedNavigation': selectedNavigation,
+      'projectName': projectName,
+      'createdProjectId': createdProjectId,
+    };
 
-        if (response.statusCode == 200) {
-          emit(ProjectSavedState());
-        } else {
-          emit(ProjectErrorState("Ошибка: ${response.body}"));
-        }
-      } catch (e) {
-        emit(ProjectErrorState("Ошибка соединения с сервером"));
-      }
-    });
+    if (state is LoginInitialState) {
+      json['state'] = 'LoginInitialState';
+    } else if (state is AuthenticatedState) {
+      json['state'] = 'AuthenticatedState';
+    } else if (state is ThemeSelectionState) {
+      json['state'] = 'ThemeSelectionState';
+    } else if (state is NavigationSelectionState) {
+      json['state'] = 'NavigationSelectionState';
+    } else if (state is ProjectNameState) {
+      json['state'] = 'ProjectNameState';
+    } else if (state is ProjectSavedState) {
+      json['state'] = 'ProjectSavedState';
+    } else if (state is ProjectLoadedState) {
+      json['state'] = 'ProjectLoadedState';
+      json['projectId'] = state.id;
+      json['projectNameLoaded'] = state.name;
+      json['rules'] = state.rules;
+    } else if (state is ProjectErrorState) {
+      json['state'] = 'ProjectErrorState';
+      //json['errorMessage'] = state.message;
+    } else {
+      // Неизвестное состояние — не сохраняем
+      return null;
+    }
+
+    return json;
   }
 }

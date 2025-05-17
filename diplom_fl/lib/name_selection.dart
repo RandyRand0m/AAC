@@ -1,3 +1,5 @@
+import 'package:diplom_fl/app_editor.dart';
+import 'package:diplom_fl/templates.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -29,8 +31,11 @@ class _ProjectNameScreenState extends State<ProjectNameScreen> {
       _isLoading = true;
     });
 
+  final defaultPages = getDefaultPagesByTemplate(widget.template);
+
+  try {
     final response = await http.post(
-      Uri.parse('http://localhost:9096/projects/'),
+      Uri.parse('http://localhost:9096/api/projects/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         "name": _nameController.text,
@@ -38,23 +43,39 @@ class _ProjectNameScreenState extends State<ProjectNameScreen> {
           "template": widget.template,
           "theme": widget.theme,
           "navigation": widget.navigate,
-        }
+          ...defaultPages, // pages
+        },
       }),
     );
+
+    if (response.statusCode == 200|| response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      final int projectId = data['id']; 
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Проект сохранён!")),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AppEditor(projectId: projectId),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Ошибка при сохранении: ${response.body}")),
+      );
+    }
+  } catch (e) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Ошибка соединения с сервером")),
+    );
+  }
 
     setState(() {
       _isLoading = false;
     });
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Проект сохранён!")),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Ошибка: ${response.body}")),
-      );
-    }
   }
 
   @override

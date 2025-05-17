@@ -12,7 +12,9 @@ dependencies:
   flutter_bloc: ^9.1.0
   http: ^1.0.0
   google_fonts: ^6.2.1
-  
+  path_provider: ^2.1.5
+  shared_preferences: ^2.2.2
+  hydrated_bloc: ^10.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -23,3 +25,4 @@ flutter:
 
   assets:
     - assets/fitnes.png
+    - assets/widgets.json

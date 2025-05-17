@@ -14,7 +14,7 @@ class NavigationSelectionScreen extends StatefulWidget {
 }
 
 final List<Map<String, String>> navigates = [
-    {"title": "Фитнес-Клуб", "image": "assets/fitnes.png",},
+    {"title": "fitnes", "image": "assets/fitnes.png",},
     {"title": "Фитнес-Студия", "image": "assets/fitnes.png"},
     // {"title": "Йога Центр", "image": "assets/fitnes.png"},
     // {"title": "Тренажёрный Зал", "image": "assets/fitnes.png"},

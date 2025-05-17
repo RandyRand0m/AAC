@@ -28,90 +28,131 @@ class _ThemeSelectionScreenState extends State<ThemeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      body: BlocListener<ProjectBloc, ProjectState>(
-        listener: (context, state) {
-          if (state is NavigationSelectionState) {
-            // После того как выбрана тема, нужно переходить на экран выбора навигации
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => NavigationSelectionScreen(
-                  template: state.template,
-                  theme: state.theme,
-                ),
+  final theme = Theme.of(context);
+
+  return Scaffold(
+    backgroundColor: theme.scaffoldBackgroundColor,
+    body: BlocListener<ProjectBloc, ProjectState>(
+      listener: (context, state) {
+        if (state is NavigationSelectionState) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => NavigationSelectionScreen(
+                template: state.template,
+                theme: state.theme,
               ),
-            );
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(top: 20.0, left: 170.0, right: 170.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: theme.cardColor,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
             ),
-            child: Column(
-              children: [
-                _buildProgressBar(),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Выберите тему для вашего приложения!",
-                          style: theme.textTheme.titleLarge,
-                        ),
-                        SizedBox(height: 10),
-                        Text("Выберите тему", style: theme.textTheme.bodyLarge),
-                        SizedBox(height: 20),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              int crossAxisCount = constraints.maxWidth > 600 ? 5 : 2;
-                              return GridView.builder(
-                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: crossAxisCount,
-                                  crossAxisSpacing: 10,
-                                  mainAxisSpacing: 10,
-                                  childAspectRatio: 0.9,
-                                ),
-                                itemCount: themes.length,
-                                itemBuilder: (context, index) {
-                                  final item = themes[index];
-                                  return _buildThemeOption(item["title"]!, item["image"]!, theme);
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                        SizedBox(height: 20),
-                        Center(
-                          child: ElevatedButton(
-                            onPressed: selectedTheme == null
-                                ? null
-                                : () {
-                                    print("Выбрана тема: $selectedTheme");
-                                    context.read<ProjectBloc>().add(SelectTheme(selectedTheme!));
-                                  },
-                            child: Text("Далее", style: TextStyle(color: Colors.white)),
-                          ),
-                        ),
-                      ],
+          );
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(left: 170.0, right: 170.0),
+        child: Column(
+          children: [
+            // AppBar
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardColor,
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        "Выбор темы",
+                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  SizedBox(width: 48),
+                ],
+              ),
             ),
-          ),
+
+            const SizedBox(height: 20),
+
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: theme.cardColor,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    _buildProgressBar(),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Выберите тему для вашего приложения!",
+                              style: theme.textTheme.titleLarge,
+                            ),
+                            SizedBox(height: 10),
+                            Text("Выберите тему", style: theme.textTheme.bodyLarge),
+                            SizedBox(height: 20),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  int crossAxisCount = constraints.maxWidth > 600 ? 5 : 2;
+                                  return GridView.builder(
+                                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: crossAxisCount,
+                                      crossAxisSpacing: 10,
+                                      mainAxisSpacing: 10,
+                                      childAspectRatio: 0.9,
+                                    ),
+                                    itemCount: themes.length,
+                                    itemBuilder: (context, index) {
+                                      final item = themes[index];
+                                      return _buildThemeOption(item["title"]!, item["image"]!, theme);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
+                            SizedBox(height: 20),
+                            Center(
+                              child: ElevatedButton(
+                                onPressed: selectedTheme == null
+                                    ? null
+                                    : () {
+                                        print("Выбрана тема: $selectedTheme");
+                                        context.read<ProjectBloc>().add(SelectTheme(selectedTheme!));
+                                      },
+                                child: Text("Далее", style: TextStyle(color: Colors.white)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildThemeOption(String title, String imagePath, ThemeData theme) {
     bool isSelected = selectedTheme == title;
