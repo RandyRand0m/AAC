@@ -15,6 +15,7 @@ dependencies:
   path_provider: ^2.1.5
   shared_preferences: ^2.2.2
   hydrated_bloc: ^10.0.0
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -26,3 +27,5 @@ flutter:
   assets:
     - assets/fitnes.png
     - assets/widgets.json
+    - assets/GYMAPP.png
+    - assets/logo.png

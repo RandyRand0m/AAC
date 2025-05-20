@@ -81,6 +81,7 @@ class _MyAppState extends State<MyApp> {
                   template: state.template,
                   theme: state.theme,
                   navigate: state.navigate,
+                  userId: context.read<ProjectBloc>().userId!,
                 ),
               ),
             );
@@ -131,6 +132,18 @@ class _MyAppState extends State<MyApp> {
             return _errorRoute("ID проекта не передан или неверного типа");
           }
         }
+
+        if (settings.name == '/editor') {
+          final args = settings.arguments;
+          if (args is int) {
+            return MaterialPageRoute(
+              builder: (_) => TemplateSelectionScreen(),
+            );
+          } else {
+            return _errorRoute("ID проекта не передан или неверного типа");
+          }
+        }
+
 
         return _errorRoute("Маршрут '${settings.name}' не найден");
       },

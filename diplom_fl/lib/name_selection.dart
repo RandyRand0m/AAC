@@ -8,8 +8,8 @@ class ProjectNameScreen extends StatefulWidget {
   final String template;
   final String theme;
   final String navigate;
-
-  const ProjectNameScreen({super.key, required this.template, required this.theme, required this.navigate});
+  final int userId;
+  const ProjectNameScreen({super.key, required this.template, required this.theme, required this.navigate, required this.userId});
 
   @override
   _ProjectNameScreenState createState() => _ProjectNameScreenState();
@@ -39,6 +39,7 @@ class _ProjectNameScreenState extends State<ProjectNameScreen> {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         "name": _nameController.text,
+        "user_id": widget.userId,
         "rules": {
           "template": widget.template,
           "theme": widget.theme,

@@ -20,7 +20,18 @@ class AppTheme {
           fontSize: 16,
           color: Colors.black, 
         ),
+        labelSmall: GoogleFonts.roboto(
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
+          color: const Color.fromARGB(255, 0, 0, 0),
+        ),
+        labelMedium: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+          color: const Color.fromARGB(255, 255, 255, 255),
+        ),
       ),
+      
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color.fromRGBO(159,71,246, 1), 

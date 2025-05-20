@@ -70,7 +70,10 @@ class _ProjectsOverviewScreenState extends State<ProjectsOverviewScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("GYMAPP проекты", style: TextStyle(color: Colors.black)),
+        title: Image.asset(
+          'assets/GYMAPP.png',
+          height: 40,
+        ),
         backgroundColor: Colors.white,
         iconTheme: IconThemeData(color: Colors.black),
       ),
@@ -117,9 +120,47 @@ class _ProjectsOverviewScreenState extends State<ProjectsOverviewScreen> {
                                 mainAxisSpacing: 16,
                                 childAspectRatio: 4 / 3,
                               ),
-                              itemCount: projects.length,
+                              itemCount: projects.length + 1, // +1 для карточки "Создать проект"
                               itemBuilder: (context, index) {
-                                final project = projects[index];
+                                if (index == 0) {
+                                  // Первая карточка — "Создать новый проект"
+                                  return Card(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    elevation: 4,
+                                    color: Colors.blue[50],
+                                    child: InkWell(
+                                      onTap: () {
+                                        // Здесь вы можете использовать Bloc или просто переход на экран выбора шаблона
+                                        Navigator.pushNamed(context, '/select-template');
+                                      },
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Icon(Icons.add_circle_outline, size: 48, color: Colors.blue),
+                                            SizedBox(height: 16),
+                                            Text("Создать новое приложение", style: Theme.of(context).textTheme.titleMedium),
+                                            Spacer(),
+                                            Align(
+                                              alignment: Alignment.bottomRight,
+                                              child: ElevatedButton.icon(
+                                                onPressed: () {
+                                                  Navigator.pushNamed(context, '/select-template');
+                                                },
+                                                icon: Icon(Icons.add),
+                                                label: Text("Создать"),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                }
+
+                                
+                                final project = projects[index - 1]; 
                                 return Card(
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                   elevation: 4,
@@ -128,7 +169,7 @@ class _ProjectsOverviewScreenState extends State<ProjectsOverviewScreen> {
                                       Navigator.pushNamed(
                                         context,
                                         '/editor',
-                                        arguments: int.parse(project['id'].toString()), // или передавайте весь объект
+                                        arguments: int.parse(project['id'].toString()),
                                       );
                                     },
                                     child: Padding(
@@ -160,10 +201,9 @@ class _ProjectsOverviewScreenState extends State<ProjectsOverviewScreen> {
                                   ),
                                 );
                               },
-                            ),
             ),
           ),
-        ],
+      )],
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:diplom_fl/overview.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
       backgroundColor: const Color(0xfff3f4f8),
       body: Center(
         child: Container(
-          width: 350,
+          width: 400,
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: Colors.white,
@@ -64,16 +65,38 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/logo.png', height: 60),
+              Padding(
+                padding: const EdgeInsets.all(50.0), 
+                child: Image.asset('assets/GYMAPP.png', height: 60),
+              ),
+              
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Введите номер телефона",
+                  style: Theme.of(context)
+                      .textTheme
+                      .labelSmall
+                      ?.copyWith(fontWeight: FontWeight.w500),
+                ),
+              ),
               const SizedBox(height: 16),
-              const Text("Введите номер телефона", style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
               TextField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   hintText: '7 (XXX) XXX XX XX',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  borderSide: BorderSide(color: Colors.grey),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                  borderSide: BorderSide(color: Colors.deepPurple),
+                ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -84,8 +107,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   icon: _isLoading
                       ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                       : const Icon(Icons.send),
-                  label: const Text("Войти через Telegram"),
-                ),
+                  label: Text("Войти через Telegram",
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelMedium
+                        ?.copyWith(fontWeight: FontWeight.w500),),
+                  ),
               ),
               const SizedBox(height: 12),
               const Text(
@@ -208,7 +235,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/logo.png', height: 60),
+              Image.asset('assets/GYMAPP.png', height: 60),
               const SizedBox(height: 16),
               const Text(
                 "Подтверждение номера телефона",

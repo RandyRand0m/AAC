@@ -112,20 +112,131 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
   String? selectedNavigation;
   String? projectName;
   int? createdProjectId;
+  int? userId;
 
   ProjectBloc() : super(LoginInitialState()) {
     _checkAuthOnStart();
 
     on<CheckAuthEvent>((event, emit) async {
       debugPrint('>>> [CheckAuthEvent] user_id: ${event.userId}');
-
+      userId = event.userId;
       if (event.userId != null) {
         emit(AuthenticatedState());
       } else {
         emit(LoginInitialState());
       }
     });
+    on<LoginEvent>((event, emit) async {
+      try {
+        final response = await http.post(
+          Uri.parse('http://localhost:9096/auth/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "phone": event.phone,
+            "code": event.code,
+          }),
+        );
 
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final prefs = await SharedPreferences.getInstance();
+
+          // Сохраняем токен и user_id
+          await prefs.setString('access_token', data['access_token']);
+          await prefs.setInt('user_id', data['user_id']);
+
+          emit(AuthenticatedState());
+        } else {
+          emit(ProjectErrorState("Ошибка входа: ${response.body}"));
+        }
+      } catch (e) {
+        emit(ProjectErrorState("Ошибка соединения при входе"));
+      }
+    });
+    on<SelectTemplate>((event, emit) {
+      selectedTemplate = event.template;
+      emit(ThemeSelectionState(event.template));
+    });
+
+    on<SelectTheme>((event, emit) {
+      selectedTheme = event.theme;
+      if (selectedTemplate != null) {
+        emit(NavigationSelectionState(selectedTemplate!, selectedTheme!));
+      } else {
+        emit(ProjectErrorState("Выберите шаблон перед темой"));
+      }
+    });
+
+    on<SelectNavigation>((event, emit) {
+      selectedNavigation = event.navigate;
+      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!));
+    });
+
+    on<EnterProjectName>((event, emit) {
+      projectName = event.name;
+      emit(ProjectNameState(
+        selectedTemplate!,
+        selectedTheme!,
+        selectedNavigation!,
+        name: projectName,
+      ));
+    });
+
+    on<SaveProject>((event, emit) async {
+      if (projectName == null || projectName!.isEmpty) {
+        emit(ProjectErrorState("Название проекта не может быть пустым"));
+        return;
+      }
+
+      emit(ProjectSavingState());
+
+      try {
+        final response = await http.post(
+          Uri.parse('http://localhost:9096/projects/'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "name": projectName,
+            "rules": {
+              "template": selectedTemplate,
+              "theme": selectedTheme,
+              "navigation": selectedNavigation,
+            }
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          createdProjectId = data['id'];
+          emit(ProjectSavedState(createdProjectId!));
+        } else {
+          emit(ProjectErrorState("Ошибка: ${response.body}"));
+        }
+      } catch (e) {
+        emit(ProjectErrorState("Ошибка соединения с сервером"));
+      }
+    });
+
+    on<LoadProjectById>((event, emit) async {
+      try {
+        final response = await http.get(
+          Uri.parse('http://localhost:9096/projects/${event.id}/'),
+        );
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          emit(ProjectLoadedState(
+            id: data['id'],
+            name: data['name'],
+            rules: Map<String, dynamic>.from(data['rules']),
+          ));
+        } else {
+          emit(ProjectErrorState("Проект не найден: ${response.body}"));
+        }
+      } catch (e) {
+        emit(ProjectErrorState("Ошибка загрузки проекта"));
+      }
+    }
+    );
     // остальной код событий без изменений ...
 
   }

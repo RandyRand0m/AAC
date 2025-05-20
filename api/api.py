@@ -319,20 +319,12 @@ async def create_project(project_in: ProjectCreateScheme, db: AsyncSession = Dep
 async def update_project(project_id: int, project_data: ProjectUpdateScheme, db: AsyncSession = Depends(db_helper.scoped_session_dependency)):
     return await update_project_crud(session=db, project_id=project_id, project_data=project_data)
 
-# @router.get("/projects2/", response_model=List[ProjectViewScheme])
-# async def get_projects2(
-#     db: AsyncSession = Depends(db_helper.scoped_session_dependency),
-#     current_user: User = Depends(get_current_user)
-# ):
-#     result = await db.execute(select(Project).where(Project.user_id == current_user.id))
-#     projects = result.scalars().all()
-#     return [ProjectViewScheme(id=p.id, name=p.name, rules=p.rules, pages=[]) for p in projects]@router.get("/projects2/", response_model=List[ProjectViewScheme])
 
-@router.get("/projects/", response_model=ProjectViewScheme)
+@router.get("/projects/", response_model=List[ProjectViewScheme])
 async def get_project(db: AsyncSession = Depends(db_helper.scoped_session_dependency)):
-    return (await get_projects_crud(session=db,)
+    return await get_projects_crud(session=db,)
 
-@router.get("/projects/{project_id}/", response_model=ProjectViewScheme))
+@router.get("/projects/{project_id}/", response_model=ProjectViewScheme)
 async def get_project_by_id(project_id: int, db: AsyncSession = Depends(db_helper.scoped_session_dependency)):
     return await get_project_by_id_crud(session=db, project_id=project_id)
 
