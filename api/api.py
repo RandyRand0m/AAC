@@ -1,31 +1,18 @@
-import os
-import shutil
 from typing import List, Dict, Optional
-
-import httpx
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Header
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, field_validator, ValidationError
 from rest_framework import status
 from sqlalchemy import delete
-from sqlalchemy.future import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from starlette.responses import JSONResponse
-
 from core.models import db_helper, Project, Widget, Page, User
-# from core.models.coremodels import PointType, PointImage
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from jose import jwt, JWTError
-from starlette.status import HTTP_401_UNAUTHORIZED
-
-from core.config import settings  # SECRET_KEY и прочее
-
+from jose import jwt
 from core.models import  User
-from .settings import settings
+
 
 router = APIRouter()
 router.tags = ["Name"]
