@@ -6,7 +6,8 @@ import 'app_theme.dart';
 
 class ThemeSelectionScreen extends StatefulWidget {
   final String template;
-  const ThemeSelectionScreen({super.key, required this.template});
+  final int userId;
+  const ThemeSelectionScreen({super.key, required this.template, required this.userId});
 
   @override
   _ThemeSelectionScreenState createState() => _ThemeSelectionScreenState();
@@ -15,6 +16,7 @@ class ThemeSelectionScreen extends StatefulWidget {
 final List<Map<String, String>> themes = [
   {"title": "Светлая", "image": "assets/fitnes.png"},
   {"title": "Темная", "image": "assets/fitnes.png"},
+  
 ];
 
 class _ThemeSelectionScreenState extends State<ThemeSelectionScreen> {
@@ -41,6 +43,7 @@ class _ThemeSelectionScreenState extends State<ThemeSelectionScreen> {
               builder: (context) => NavigationSelectionScreen(
                 template: state.template,
                 theme: state.theme,
+                userId: widget.userId,
               ),
             ),
           );
@@ -71,10 +74,9 @@ class _ThemeSelectionScreenState extends State<ThemeSelectionScreen> {
                 children: [
                   Expanded(
                     child: Center(
-                      child: Text(
-                        "Выбор темы",
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
+                      child: Image.asset(
+                      'assets/GYMAPP.png',
+                      height: 40,),
                     ),
                   ),
                   SizedBox(width: 48),
@@ -131,11 +133,20 @@ class _ThemeSelectionScreenState extends State<ThemeSelectionScreen> {
                             Center(
                               child: ElevatedButton(
                                 onPressed: selectedTheme == null
-                                    ? null
-                                    : () {
-                                        print("Выбрана тема: $selectedTheme");
-                                        context.read<ProjectBloc>().add(SelectTheme(selectedTheme!));
-                                      },
+                                ? null
+                                : () {
+                                    context.read<ProjectBloc>().add(SelectTheme(selectedTheme!));
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => NavigationSelectionScreen(
+                                          template: widget.template,
+                                          theme: selectedTheme!,
+                                          userId: widget.userId,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 child: Text("Далее", style: TextStyle(color: Colors.white)),
                               ),
                             ),

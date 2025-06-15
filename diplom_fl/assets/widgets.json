@@ -70,5 +70,18 @@
         }
       },
       "sampleCode": "ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: Color.fromHex('$backgroundColor')), onPressed: () {}, child: Text('$text', style: TextStyle(color: Color.fromHex('$textColor'))))"
+    },
+    {
+      "widgetName": "club_card",
+      "id": "club_card",
+      "name": "Клубная карта",
+      "type": "club_card",
+      "category": 1,
+      "config": {
+        "title": "Моя клубная карта",
+        "subtitle": "0001",
+        "backgroundColor": "#FFD700"
+      },
+      "sampleCode": "ClubCardWidget(title: '$title', subtitle: '$subtitle', backgroundColor: Color.fromHex('$backgroundColor'))"
     }
   ]

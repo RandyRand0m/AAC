@@ -15,6 +15,7 @@ dependencies:
   path_provider: ^2.1.5
   shared_preferences: ^2.2.2
   hydrated_bloc: ^10.0.0
+  flutter_colorpicker: ^1.0.3
   
 dev_dependencies:
   flutter_test:

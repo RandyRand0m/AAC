@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:diplom_fl/overview.dart';
+import 'package:diplom_fl/start_bloc.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app_theme.dart';
@@ -23,6 +25,7 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final response = await http.post(
+      // Uri.parse('https://konstaya.online/auth/api/v1/auth/auth_phone?phone=$phone'),
       Uri.parse('http://localhost:9090/api/v1/auth/auth_phone?phone=$phone'),
       headers: {'Content-Type': 'application/json'},
     );
@@ -150,6 +153,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
     });
 
     final tgResponse = await http.post(
+      // Uri.parse('https://konstaya.online/auth/api/v1/auth/code?phone=${widget.phone}&code=$code'),
       Uri.parse('http://localhost:9090/api/v1/auth/code?phone=${widget.phone}&code=$code'),
       headers: {'Content-Type': 'application/json'},
     );
@@ -187,13 +191,19 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
           await prefs.setInt('user_id', userId);
 
           if (!mounted) return;
-          print("userId = $userId — переходим на ProjectsOverviewScreen");
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => ProjectsOverviewScreen(userId: userId)),
-            );
-          });
+            print("userId = $userId — переходим на ProjectsOverviewScreen");
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => BlocProvider.value(
+                    value: BlocProvider.of<ProjectBloc>(context)
+                      ..add(CheckAuthEvent(userId: userId)),
+                    child: ProjectsOverviewScreen(userId: userId),
+                  ),
+                ),
+              );
+            });
         } else {
           print("Ошибка авторизации на сервере: ${myResponse.body}");
         }
@@ -206,7 +216,7 @@ class _EnterCodeScreenState extends State<EnterCodeScreen> {
         const SnackBar(content: Text("Неверный код. Попробуйте ещё раз.")),
       );
     }
-
+    
     setState(() {
       _isLoading = false;
     });

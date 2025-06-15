@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:io';
 import 'package:diplom_fl/app_editor.dart';
 import 'package:diplom_fl/app_theme.dart';
+import 'package:diplom_fl/navigation_selection.dart';
 import 'package:diplom_fl/overview.dart';
+import 'package:diplom_fl/settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:hydrated_bloc/hydrated_bloc.dart';
@@ -70,7 +72,7 @@ class _MyAppState extends State<MyApp> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => ThemeSelectionScreen(template: state.template),
+                builder: (context) => ThemeSelectionScreen(template: state.template, userId: state.userId,),
               ),
             );
           } else if (state is ProjectNameState) {
@@ -93,7 +95,7 @@ class _MyAppState extends State<MyApp> {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => AppEditor(projectId: state.id),
+                builder: (context) => AppEditor(projectId: state.id,userId: context.read<ProjectBloc>().userId!,),
               ),
             );
           }
@@ -102,7 +104,27 @@ class _MyAppState extends State<MyApp> {
           if (state is LoginInitialState || state is ProjectErrorState) {
             return LoginScreen();
           } else if (state is AuthenticatedState) {
-            return const TemplateSelectionScreen();
+            return ProjectsOverviewScreen(userId: state.userId);
+          } else if (state is TemplateSelectionState) {
+            return TemplateSelectionScreen(userId: state.userId);
+          } else if (state is ThemeSelectionState) {
+            return ThemeSelectionScreen(
+              template: state.template,
+              userId: context.read<ProjectBloc>().userId!,
+            );
+          } else if (state is NavigationSelectionState) {
+            return NavigationSelectionScreen(
+              template: state.template,
+              theme: state.theme,
+              userId: context.read<ProjectBloc>().userId!,
+            );
+          } else if (state is ProjectNameState) {
+            return ProjectNameScreen(
+              template: state.template,
+              theme: state.theme,
+              navigate: state.navigate,
+              userId: context.read<ProjectBloc>().userId!,
+            );
           } else {
             return const Scaffold(
               body: Center(child: CircularProgressIndicator()),
@@ -126,24 +148,28 @@ class _MyAppState extends State<MyApp> {
           final args = settings.arguments;
           if (args is int) {
             return MaterialPageRoute(
-              builder: (_) => AppEditor(projectId: args),
+              builder: (_) => AppEditor(projectId: args, userId: context.read<ProjectBloc>().userId!,),
             );
           } else {
             return _errorRoute("ID проекта не передан или неверного типа");
           }
         }
 
-        if (settings.name == '/editor') {
-          final args = settings.arguments;
-          if (args is int) {
-            return MaterialPageRoute(
-              builder: (_) => TemplateSelectionScreen(),
-            );
-          } else {
-            return _errorRoute("ID проекта не передан или неверного типа");
-          }
+        if (settings.name == '/create') {
+          return MaterialPageRoute(
+            builder: (_) => TemplateSelectionScreen( userId: context.read<ProjectBloc>().userId!),
+          );
         }
-
+        if (settings.name == '/settings') {
+          return MaterialPageRoute(
+            builder: (_) => SettingsScreen(),
+          );
+        }
+        if (settings.name == '/login') {
+          return MaterialPageRoute(
+            builder: (_) => LoginScreen(),
+          );
+        }
 
         return _errorRoute("Маршрут '${settings.name}' не найден");
       },

@@ -2,10 +2,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from api.api import router as project_router
+from api.api import router as project_router, router
 
 app = FastAPI()
-
+app.include_router(router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,

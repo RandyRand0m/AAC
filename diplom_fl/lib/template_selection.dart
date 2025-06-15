@@ -5,7 +5,9 @@ import 'start_bloc.dart';
 import 'app_theme.dart';
 
 class TemplateSelectionScreen extends StatefulWidget {
-  const TemplateSelectionScreen({super.key});
+  final int userId;
+  const TemplateSelectionScreen({super.key, required this.userId});
+  
 
   @override
   _TemplateSelectionScreenState createState() => _TemplateSelectionScreenState();
@@ -21,8 +23,8 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
   }
 
   final List<Map<String, String>> templates = [
-    {"title": "fitnes", "image": "assets/fitnes.png",},
-    {"title": "Фитнес-Студия", "image": "assets/fitnes.png"},
+    {"title": "Фитнес-Клуб", "image": "assets/fitnes.png","name":"Фитнес-Клуб"},
+    {"title": "Фитнес-Студия", "image": "assets/fitnes.png","name":"Фитнес-Студия"},
     // {"title": "Йога Центр", "image": "assets/fitnes.png"},
     // {"title": "Тренажёрный Зал", "image": "assets/fitnes.png"},
     // {"title": "Здоровый Образ", "image": "assets/fitnes.png"},
@@ -52,10 +54,9 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
                 children: [
                   Expanded(
                     child: Center(
-                      child: Text(
-                        "",
-                        style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                      ),
+                      child: Image.asset(
+                      'assets/GYMAPP.png',
+                      height: 40,),
                     ),
                   ),
                   SizedBox(width: 48),
@@ -111,10 +112,19 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
                             Center(
                               child: ElevatedButton(
                                 onPressed: selectedTemplate == null
-                                    ? null
-                                    : () {
-                                        context.read<ProjectBloc>().add(SelectTemplate(selectedTemplate!));
-                                      },
+                                ? null
+                                : () {
+                                    context.read<ProjectBloc>().add(SelectTemplate(selectedTemplate!));
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => ThemeSelectionScreen(
+                                          template: selectedTemplate!,
+                                          userId: widget.userId,
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 child: Text("Далее", style: TextStyle(color: Colors.white)),
                               ),
                             ),
@@ -172,11 +182,11 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStep("1", "ВЫБРАТЬ ШАБЛОН", isActive: true, onTap: () => _goToStep(1)),
-          _buildStep("2", "ВЫБРАТЬ ТЕМУ", onTap: () => _goToStep(2)),
-          _buildStep("3", "ВЫБРАТЬ НАВИГАЦИЮ", onTap: () => _goToStep(3)),
-          _buildStep("4", "НАЗВАТЬ ПРОЕКТ", onTap: () => _goToStep(4)),
-          _buildStep("5", "СОЗДАТЬ", onTap: () => _goToStep(5)),
+          _buildStep("1", "ВЫБРАТЬ ШАБЛОН", isActive: true),
+          _buildStep("2", "ВЫБРАТЬ ТЕМУ"),
+          _buildStep("3", "ВЫБРАТЬ НАВИГАЦИЮ"),
+          _buildStep("4", "НАЗВАТЬ ПРОЕКТ"),
+          _buildStep("5", "СОЗДАТЬ"),
         ],
       ),
     );
@@ -186,7 +196,6 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
     String title, {
     bool isCompleted = false,
     bool isActive = false,
-    required VoidCallback onTap, 
     }
   ) 
   {
@@ -205,14 +214,14 @@ class _TemplateSelectionScreenState extends State<TemplateSelectionScreen> {
       ],
     );
   }
-  void _goToStep(int step) {
-    switch (step) {
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => TemplateSelectionScreen()), // Переход на Step1Screen
-        );
-        break;
-    }
-  }
+  // void _goToStep(int step) {
+  //   switch (step) {
+  //     case 1:
+  //       Navigator.push(
+  //         context,
+  //         MaterialPageRoute(builder: (context) => TemplateSelectionScreen()),
+  //       );
+  //       break;
+  //   }
+  // }
 }

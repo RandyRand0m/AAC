@@ -1,3 +1,4 @@
+import 'package:diplom_fl/app_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,8 @@ import 'package:hydrated_bloc/hydrated_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 abstract class ProjectEvent {}
+
+class LogoutEvent extends ProjectEvent {}
 class LoginEvent extends ProjectEvent {
   final String phone;
   final String code;
@@ -19,7 +22,10 @@ class CheckAuthEvent extends ProjectEvent {
 
 class LoginInitialState extends ProjectState {}
 
-class AuthenticatedState extends ProjectState {}
+class AuthenticatedState extends ProjectState {
+  final int userId;
+  AuthenticatedState({required this.userId});
+}
 
 class SelectTemplate extends ProjectEvent {
   final String template;
@@ -43,7 +49,6 @@ class EnterProjectName extends ProjectEvent {
 
 class SaveProject extends ProjectEvent {}
 
-/// новое событие, если нужно загрузить проект из API по ID
 class LoadProjectById extends ProjectEvent {
   final int id;
   LoadProjectById(this.id);
@@ -51,17 +56,23 @@ class LoadProjectById extends ProjectEvent {
 
 abstract class ProjectState {}
 
-class TemplateSelectionState extends ProjectState {}
+class TemplateSelectionState extends ProjectState {
+  final int userId;
+  TemplateSelectionState(this.userId);
+}
 
 class ThemeSelectionState extends ProjectState {
   final String template;
-  ThemeSelectionState(this.template);
+  final int userId;
+  ThemeSelectionState(this.template, this.userId);
 }
 
 class NavigationSelectionState extends ProjectState {
   final String template;
   final String theme;
-  NavigationSelectionState(this.template, this.theme);
+  final String? navigate;
+
+  NavigationSelectionState(this.template, this.theme, [this.navigate]);
 }
 
 class ProjectNameState extends ProjectState {
@@ -96,16 +107,48 @@ class ProjectLoadedState extends ProjectState {
   });
 }
 
+class AppStarted extends ProjectEvent {}
+class CheckingAuthState extends ProjectState {}
 class LoadProjectsOverview extends ProjectEvent {
   final int userId;
   LoadProjectsOverview(this.userId);
 }
 
+class WidgetSelectedForEdit extends ProjectState {
+  final WidgetItem selectedWidget;
+  WidgetSelectedForEdit(this.selectedWidget);
+}
+class SelectWidgetForEdit extends ProjectEvent {
+  final WidgetItem widget;
+
+  SelectWidgetForEdit(this.widget);
+}
 class ProjectsOverviewState extends ProjectState {
   final int userId;
   ProjectsOverviewState(this.userId);
 }
+class UpdateWidgetEvent extends ProjectEvent {
+  final int pageIndex;
+  final int widgetIndex;
+  final WidgetItem updatedWidget;
 
+  UpdateWidgetEvent({
+    required this.pageIndex,
+    required this.widgetIndex,
+    required this.updatedWidget,
+  });
+}
+class EditWidgetState extends ProjectState {
+  final WidgetItem widgetItem;
+  final int pageIndex;
+  final int widgetIndex;
+
+  EditWidgetState({
+    required this.widgetItem,
+    required this.pageIndex,
+    required this.widgetIndex,
+  });
+}
 class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
   String? selectedTemplate;
   String? selectedTheme;
@@ -117,15 +160,7 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
   ProjectBloc() : super(LoginInitialState()) {
     _checkAuthOnStart();
 
-    on<CheckAuthEvent>((event, emit) async {
-      debugPrint('>>> [CheckAuthEvent] user_id: ${event.userId}');
-      userId = event.userId;
-      if (event.userId != null) {
-        emit(AuthenticatedState());
-      } else {
-        emit(LoginInitialState());
-      }
-    });
+   
     on<LoginEvent>((event, emit) async {
       try {
         final response = await http.post(
@@ -140,12 +175,10 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final prefs = await SharedPreferences.getInstance();
-
-          // Сохраняем токен и user_id
           await prefs.setString('access_token', data['access_token']);
           await prefs.setInt('user_id', data['user_id']);
-
-          emit(AuthenticatedState());
+          userId = data['user_id'];
+          emit(AuthenticatedState(userId: data['user_id']));
         } else {
           emit(ProjectErrorState("Ошибка входа: ${response.body}"));
         }
@@ -155,9 +188,17 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
     });
     on<SelectTemplate>((event, emit) {
       selectedTemplate = event.template;
-      emit(ThemeSelectionState(event.template));
+      emit(ThemeSelectionState(event.template, userId!));
     });
-
+    on<CheckAuthEvent>((event, emit) async {
+      debugPrint('>>> [CheckAuthEvent] user_id: ${event.userId}');
+      userId = event.userId;
+      if (event.userId != null) {
+        emit(AuthenticatedState(userId: event.userId));
+      } else {
+        emit(LoginInitialState());
+      }
+    });
     on<SelectTheme>((event, emit) {
       selectedTheme = event.theme;
       if (selectedTemplate != null) {
@@ -169,7 +210,11 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
 
     on<SelectNavigation>((event, emit) {
       selectedNavigation = event.navigate;
-      emit(ProjectNameState(selectedTemplate!, selectedTheme!, selectedNavigation!));
+      emit(ProjectNameState(
+        selectedTemplate!, 
+        selectedTheme!,
+        selectedNavigation!
+      ));
     });
 
     on<EnterProjectName>((event, emit) {
@@ -192,7 +237,7 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
 
       try {
         final response = await http.post(
-          Uri.parse('http://localhost:9096/projects/'),
+          Uri.parse('https://konstaya.online/api/api/projects/'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             "name": projectName,
@@ -237,7 +282,38 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
       }
     }
     );
-    // остальной код событий без изменений ...
+    on<AppStarted>((event, emit) async {
+      emit(CheckingAuthState());
+
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('user_id');
+      final token = prefs.getString('access_token');
+
+      if (userId != null && token != null && token.isNotEmpty) {
+        this.userId = userId; 
+        emit(AuthenticatedState(userId: userId));
+      } else {
+        emit(LoginInitialState());
+      }
+    });
+    
+    on<SelectWidgetForEdit>((event, emit) {
+      emit(WidgetSelectedForEdit(event.widget));
+    });
+    on<LogoutEvent>((event, emit) async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('access_token');
+      await prefs.remove('user_id');
+
+      selectedTemplate = null;
+      selectedTheme = null;
+      selectedNavigation = null;
+      projectName = null;
+      createdProjectId = null;
+      userId = null;
+
+      emit(LoginInitialState());
+    });
 
   }
 
@@ -254,21 +330,21 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
     try {
       final stateType = json['state'] as String?;
 
-      // Восстановим поля для удобства
       selectedTemplate = json['selectedTemplate'];
       selectedTheme = json['selectedTheme'];
       selectedNavigation = json['selectedNavigation'];
       projectName = json['projectName'];
       createdProjectId = json['createdProjectId'];
+      userId = json['userId'];
 
       switch (stateType) {
         case 'LoginInitialState':
           return LoginInitialState();
         case 'AuthenticatedState':
-          return AuthenticatedState();
+          return AuthenticatedState(userId: userId!);
         case 'ThemeSelectionState':
           if (selectedTemplate != null) {
-            return ThemeSelectionState(selectedTemplate!);
+            return ThemeSelectionState(selectedTemplate!, userId!);
           }
           break;
         case 'NavigationSelectionState':
@@ -301,6 +377,14 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
             return ProjectLoadedState(id: id, name: name, rules: rules);
           }
           break;
+          
+        case 'ProjectsOverviewState':
+          final userId = json['userId'] as int?;
+          if (userId != null) {
+            return ProjectsOverviewState(userId);
+          }
+          break;
+          
         case 'ProjectErrorState':
           final message = json['errorMessage'] as String? ?? "Ошибка";
           return ProjectErrorState(message);
@@ -316,11 +400,13 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
   @override
   Map<String, dynamic>? toJson(ProjectState state) {
     final Map<String, dynamic> json = {
+      'state': state.runtimeType.toString(),
       'selectedTemplate': selectedTemplate,
       'selectedTheme': selectedTheme,
       'selectedNavigation': selectedNavigation,
       'projectName': projectName,
       'createdProjectId': createdProjectId,
+      'userId': userId,
     };
 
     if (state is LoginInitialState) {
@@ -340,11 +426,16 @@ class ProjectBloc extends HydratedBloc<ProjectEvent, ProjectState> {
       json['projectId'] = state.id;
       json['projectNameLoaded'] = state.name;
       json['rules'] = state.rules;
+    } else if (state is ProjectsOverviewState) {
+      json['state'] = 'ProjectsOverviewState';
+      json['userId'] = state.userId;
     } else if (state is ProjectErrorState) {
       json['state'] = 'ProjectErrorState';
       //json['errorMessage'] = state.message;
-    } else {
-      // Неизвестное состояние — не сохраняем
+    } 
+    
+    else {
+
       return null;
     }
 

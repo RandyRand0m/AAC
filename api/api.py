@@ -1,302 +1,66 @@
 from typing import List, Dict, Optional
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import BaseModel, field_validator, ValidationError, Field
 from rest_framework import status
 from sqlalchemy import delete
 from sqlalchemy.orm import selectinload
 from starlette.responses import JSONResponse
+
+from api.crude import create_project_crud, update_project_crud, get_projects_crud, get_project_by_id_crud, \
+    delete_project_crud, create_widget_crud, update_widget_crud, get_widgets_crud, get_widget_by_id_crud, \
+    delete_widget_crud
+from api.scheme import ProjectCreateScheme, ProjectViewScheme, ProjectUpdateScheme, PageViewScheme, WidgetViewScheme, \
+    WidgetCreateScheme, WidgetUpdateScheme
 from core.models import db_helper, Project, Widget, Page, User
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from jose import jwt
+from jose import jwt, JWTError
 from core.models import  User
-
+from core.models.coremodels import Verification
 
 router = APIRouter()
 router.tags = ["Name"]
 
-class WidgetLinkScheme(BaseModel):
-    id: int
-
-class WidgetViewScheme(BaseModel):
-    id: int
-    name: str
-    type: str
-    code: Optional[str] = None
-    file_url: Optional[str] = None
-    config: Dict = {}
-
-    class Config:
-        from_attributes = True
-
-class WidgetCreateScheme(BaseModel):
-    name: str
-    type: str
-    config: Dict = {}
-    code: Optional[str] = None
-    file_url: Optional[str] = None
-
-class PageCreateScheme(BaseModel):
-    name: str
-    order: int
-    widgets: List[WidgetCreateScheme] = []
-
-class PageViewScheme(BaseModel):
-    id: int
-    name: str
-    order: int
-    widgets: List[WidgetViewScheme] = []
-
-    class Config:
-        from_attributes = True
-
-class WidgetUpdateScheme(BaseModel):
-    name: Optional[str] = None
-    type: Optional[str] = None
-    code: Optional[str] = None
-    file_url: Optional[str] = None
-
-class ProjectCreateScheme(BaseModel):
-    name: str
-    rules: Dict
-    pages: List[PageCreateScheme] = []
-    user_id: int
-
-class ProjectViewScheme(BaseModel):
-    id: int
-    name: str
-    rules: Dict
-    pages: List[PageViewScheme] = []
-
-    class Config:
-        from_attributes = True
-
-
-class ProjectUpdateScheme(BaseModel):
-    name: Optional[str] = None
-    rules: Optional[Dict] = None
-    widgets: Optional[List[WidgetCreateScheme]] = None  # перезапись виджетов (если нужно)
-
-
-async def create_project_crud(session: AsyncSession, project_in: ProjectCreateScheme) -> ProjectViewScheme:
-    try:
-        project = Project(name=project_in.name, rules=project_in.rules, user_id=project_in.user_id)
-        session.add(project)
-        await session.flush()  # нужно до создания связанных объектов
-
-        for page_data in project_in.pages:
-            page = Page(name=page_data.name, order=page_data.order, project=project)
-            session.add(page)
-            await session.flush()
-
-            for widget_data in page_data.widgets:
-                widget = Widget(
-                    name=widget_data.name,
-                    type=widget_data.type,
-                    config=widget_data.config,
-                    code=widget_data.code,
-                    file_url=widget_data.file_url,
-                    page=page
-                )
-                session.add(widget)
-
-        await session.commit()
-        await session.refresh(project)
-
-        return await get_project_by_id_crud(session, project.id)
-
-    except Exception as e:
-        print(f"Ошибка при создании проекта: {e}")
-        await session.rollback()
-        raise HTTPException(status_code=500, detail="Ошибка при создании проекта")
-
-async def update_project_crud(session: AsyncSession, project_id: int, project_data: ProjectUpdateScheme):
-    result = await session.execute(
-        select(Project)
-        .options(selectinload(Project.pages).selectinload(Page.widgets))
-        .where(Project.id == project_id)
-    )
-    project = result.scalars().first()
-
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
-
-    if project_data.name:
-        project.name = project_data.name
-
-    if project_data.rules is not None:
-        project.rules = project_data.rules
-
-    if project_data.widgets is not None:
-        project.pages.clear()
-
-        page = Page(name="Main", order=0, project=project)
-
-        for w_data in project_data.widgets:
-            widget = Widget(
-                name=w_data.name,
-                type=w_data.type,
-                config=w_data.config,
-                code=w_data.code,
-                file_url=w_data.file_url,
-                page=page
-            )
-            session.add(widget)
-
-        project.pages.append(page)
-
-    await session.commit()
-    await session.refresh(project)
-
-    return ProjectViewScheme(
-        id=project.id,
-        name=project.name,
-        rules=project.rules,
-        pages=[
-            PageViewScheme(
-                id=page.id,
-                name=page.name,
-                order=page.order,
-                widgets=[
-                    WidgetViewScheme(
-                        id=widget.id,
-                        name=widget.name,
-                        type=widget.type,
-                        config=widget.config,
-                        code=widget.code,
-                        file_url=widget.file_url,
-                    )
-                    for widget in page.widgets
-                ]
-            )
-            for page in project.pages
-        ]
-    )
-
-
-async def get_projects_crud(session: AsyncSession) -> List[ProjectViewScheme]:
-    result = await session.execute(select(Project))
-    projects = result.scalars().all()
-    return [ProjectViewScheme(id=p.id, name=p.name, rules=p.rules) for p in projects]
-
-
-async def get_project_by_id_crud(session: AsyncSession, project_id: int) -> ProjectViewScheme:
-    result = await session.execute(
-        select(Project)
-        .options(selectinload(Project.pages).selectinload(Page.widgets))
-        .where(Project.id == project_id)
-    )
-    project = result.scalars().first()
-
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
-
-    return ProjectViewScheme(
-        id=project.id,
-        name=project.name,
-        rules=project.rules,
-        pages=[
-            PageViewScheme(
-                id=page.id,
-                name=page.name,
-                order=page.order,
-                widgets=[
-                    WidgetViewScheme(
-                        id=w.id,
-                        name=w.name,
-                        type=w.type,
-                        config=w.config,
-                        code=w.code,
-                        file_url=w.file_url
-                    )
-                    for w in page.widgets
-                ]
-            )
-            for page in project.pages
-        ]
-    )
-
-
-async def delete_project_crud(session: AsyncSession, project_id: int):
-    result = await session.execute(select(Project).where(Project.id == project_id))
-    project = result.scalars().first()
-
-    if not project:
-        raise HTTPException(status_code=404, detail="Проект не найден")
-
-    await session.execute(delete(Project).where(Project.id == project_id))
-    await session.commit()
-    return {"message": "Проект удален"}
-
-async def create_widget_crud(session: AsyncSession, widget_in: WidgetCreateScheme) -> WidgetViewScheme:
-    widget = Widget(name=widget_in.name, type=widget_in.type, config=widget_in.config, file_url=widget_in.file_url)
-    session.add(widget)
-    await session.commit()
-    await session.refresh(widget)
-    return WidgetViewScheme(id=widget.id, name=widget.name, type=widget.type, config=widget.config, file_url=widget.file_url)
-
-async def update_widget_crud(session: AsyncSession, widget_id: int, widget_data: WidgetUpdateScheme):
-    result = await session.execute(select(Widget).where(Widget.id == widget_id))
-    widget = result.scalars().first()
-
-    if not widget:
-        raise HTTPException(status_code=404, detail="Виджет не найден")
-
-    if widget_data.name is not None:
-        widget.name = widget_data.name
-    if widget_data.type is not None:
-        widget.type = widget_data.type
-    if widget_data.config is not None:
-        widget.config = widget_data.config
-    if widget_data.file_url is not None:
-        widget.file_url = widget_data.file_url
-    await session.commit()
-    await session.refresh(widget)
-
-    return WidgetViewScheme(id=widget.id, name=widget.name, type=widget.type, config=widget.config, file_url=widget.file_url)
-
-async def get_widgets_crud(session: AsyncSession) -> List[WidgetViewScheme]:
-    result = await session.execute(select(Widget))
-    widgets = result.scalars().all()
-    return [WidgetViewScheme(id=w.id, name=w.name, type=w.type, config=w.config, file_url=w.file_url) for w in widgets]
-
-async def get_widget_by_id_crud(session: AsyncSession, widget_id: int) -> WidgetViewScheme:
-    result = await session.execute(select(Widget).where(Widget.id == widget_id))
-    widget = result.scalars().first()
-
-    if not widget:
-        raise HTTPException(status_code=404, detail="Виджет не найден")
-
-    return WidgetViewScheme(id=widget.id, name=widget.name, type=widget.type, config=widget.config, file_url=widget.file_url)
-
-async def delete_widget_crud(session: AsyncSession, widget_id: int):
-    result = await session.execute(select(Widget).where(Widget.id == widget_id))
-    widget = result.scalars().first()
-
-    if not widget:
-        raise HTTPException(status_code=404, detail="Виджет не найден")
-
-    await session.execute(delete(Widget).where(Widget.id == widget_id))
-    await session.commit()
-    return {"message": "Виджет удален"}
-
+SECRET_KEY = "366c5edb4f534d2c702004aaf6f9aa294d1b21fa068bed1cbe1e371a06aa8633"
+ALGORITHM = "HS256"
 
 @router.get("/api/projects/user/{user_id}")
 async def get_user_projects(user_id: int, db: AsyncSession = Depends(db_helper.scoped_session_dependency)):
-    result = await db.execute(select(Project).where(Project.user_id == user_id))
+    result = await db.execute(
+        select(Project)
+        .where(Project.user_id == user_id)
+        .options(
+            selectinload(Project.pages).selectinload(Page.widgets)
+    ))
     projects = result.scalars().all()
 
-    return [
-        {
+    # Преобразуем проекты в список словарей
+    projects_data = []
+    for project in projects:
+        project_data = {
             "id": project.id,
             "name": project.name,
-            "rules": project.rules,
-            #"created_at": project.created_at.isoformat(),
+            "colorScheme": project.theme,
+            "fontFamily": project.fontFamily,
+            "navBarType": project.navBarType,
+            "pages": []
         }
-        for project in projects
-    ]
+        for page in project.pages:
+            page_data = {
+                "id": page.id,
+
+                "title": page.title,
+                "widgetsList": [
+                    {"id": widget.id, "metadata": widget.config}  # Используем widget.config вместо widget.metadata
+                    for widget in page.widgets
+                ]
+            }
+            project_data["pages"].append(page_data)
+        projects_data.append(project_data)
+
+    return projects_data
 
 @router.post("/projects/", response_model=ProjectViewScheme)
 async def create_project(project_in: ProjectCreateScheme, db: AsyncSession = Depends(db_helper.scoped_session_dependency)):
@@ -344,6 +108,29 @@ async def delete_widget(widget_id: int, db: AsyncSession = Depends(db_helper.sco
 
     return await delete_widget_crud(session=db, widget_id=widget_id)
 
+def decode_jwt_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+async def get_current_user(
+    token: str = Depends(OAuth2PasswordBearer(tokenUrl="/api/login-by-token")),
+    session: AsyncSession = Depends(db_helper.scoped_session_dependency),
+) -> User:
+    payload = decode_jwt_token(token)
+    phone = payload.get("phone")
+
+    if not phone:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    result = await session.execute(select(User).where(User.phone == phone))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return user
 
 def get_authorization_header(request: Request) -> str:
     auth = request.headers.get("Authorization")
@@ -351,27 +138,20 @@ def get_authorization_header(request: Request) -> str:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing Authorization header")
     return auth
 
-# Функция для проверки наличия токена в запросе
 async def get_user_from_token(
         authorization: str = Depends(get_authorization_header),
 ):
-    # Проверяем, начинается ли токен с "Bearer "
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token format")
 
-    # Извлекаем сам токен из заголовка
     token = authorization.split(" ")[1]
 
-    # Логируем для отладки
     print(f"Received token: {token}")
 
-    # Просто возвращаем токен без декодирования
     return token
 
-# Функция, проверяющая наличие токена в запросе
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login-by-token")
 
-# Функция для проверки наличия токена через OAuth2
 def get_token(token: str = Depends(oauth2_scheme)):
     if not token:
         raise HTTPException(
@@ -379,43 +159,33 @@ def get_token(token: str = Depends(oauth2_scheme)):
             detail="Token is missing",
         )
     return token
-# Роут для логина/создания пользователя
+
 class TokenRequest(BaseModel):
     phone: str
 
+class VerificationSchema(BaseModel):
+    phone_number: str = Field(alias="phone")
+
+    class Config:
+        allow_population_by_field_name = True
+
 @router.post("/login-by-token")
 async def login_by_token(
-        request: TokenRequest,  # Получаем данные через модель Pydantic
-        token: str = Depends(get_token),
-        session: AsyncSession = Depends(db_helper.scoped_session_dependency)
+    request: VerificationSchema,
+    session: AsyncSession = Depends(db_helper.scoped_session_dependency),
 ):
-    phone = request.phone  # Получаем номер телефона из тела запроса
+    phone = request.phone_number
 
-    # Получаем токен, но сам токен не проверяется на сервере
-    received_token = await get_user_from_token(authorization=f"Bearer {token}")
+    result = await session.execute(select(User).where(User.phone == phone))
+    user = result.scalar_one_or_none()
+    if not user:
+        user = User(phone=phone)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
 
-    # Логируем токен для отладки
-    print(f"Received token: {received_token}")
+    # Создаём токен
+    token_data = {"phone": user.phone}
+    access_token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
 
-    try:
-        # Ищем пользователя по номеру телефона
-        result = await session.execute(select(User).where(User.phone == phone))
-        user = result.scalar_one_or_none()
-
-        if user:
-            # Логируем информацию о найденном пользователе
-            print(f"Found user: {user}")
-            print(f"User ID: {user.id}")
-        else:
-            # Если пользователя не найдено, создаём нового
-            print("User not found, creating new user")
-            user = User(phone=phone)
-            session.add(user)
-            await session.commit()
-            print(f"Created new user: {user}")
-
-        # Возвращаем user_id
-        return JSONResponse(content={"user_id": user.id}, status_code=status.HTTP_200_OK)
-
-    except jwt.JWTError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return {"access_token": access_token, "token_type": "bearer", "user_id": user.id,}
